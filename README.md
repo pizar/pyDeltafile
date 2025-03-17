@@ -1,6 +1,6 @@
-from pandas import DataFramefrom pandas import DataFramefrom pandas.core.interchange.dataframe_protocol import DataFrame
-
 # pyDeltafile
+
+![alt text](image.jpg)
 
 pyDeltafile is an open-source tool for comparing data files (CSV, Excel) and generating the delta between them. 
 The project identifies added, removed, and modified rows, providing a detailed report of the differences.
