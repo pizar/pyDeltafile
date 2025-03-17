@@ -65,23 +65,22 @@ def _get_line_to_delete(old_dataframe, new_dataframe, key_columns=None) -> DataF
 
 def _get_line_to_add(old_dataframe, new_dataframe, key_columns=None) -> DataFrame:
     return new_dataframe[~new_dataframe[HASH_KEY_COLUMNS_KEY].isin(old_dataframe[HASH_KEY_COLUMNS_KEY])]
-"""
+
 def _del_identical_line(old_dataframe, new_dataframe, key_columns=None) -> DataFrame:
     return new_dataframe[~new_dataframe[HASH_ALL_COLUMNS_KEY].isin(old_dataframe[HASH_ALL_COLUMNS_KEY])]
-"""
 
-"""
 def _get_line_to_update(old_dataframe, new_dataframe, key_columns=None) -> DataFrame:
     filtered = _del_identical_line(old_dataframe, new_dataframe, key_columns)
     return filtered[filtered[HASH_KEY_COLUMNS_KEY].isin(old_dataframe[HASH_KEY_COLUMNS_KEY])]
-"""
+
 def _save_dataframe(file_path:str, dataframe: DataFrame):
     dataframe.to_csv(file_path, index=False)
 
 def delta_csv(
         old_data_file:str, new_data_file:str, delta_data_file:str='delta.csv', key_columns:[]=None, skip_rows:int=0,
         delete_callback:Callable[[DataFrame], DataFrame]=None,
-        add_callback:Callable[[DataFrame], DataFrame]=None
+        add_callback:Callable[[DataFrame], DataFrame]=None,
+        update_callback:Callable[[DataFrame], DataFrame]=None
     ) -> None:
     """
     Confronta due file CSV utilizzando Pandas.
@@ -113,7 +112,11 @@ def delta_csv(
     if add_callback:
         to_add = add_callback(to_add)
 
-    delta = pd.concat([to_delete, to_add])
+    to_update = _get_line_to_update(old_dataframe, new_data_file, key_columns)
+    if add_callback:
+        to_update = update_callback(to_update)
+
+    delta = pd.concat([to_delete, to_add, to_update])
     delta.drop(HASH_ALL_COLUMNS_KEY, axis=1, inplace=True)
     delta.drop(HASH_KEY_COLUMNS_KEY, axis=1, inplace=True)
     delta.to_csv(delta_data_file, index=False)
