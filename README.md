@@ -1,8 +1,8 @@
 from pandas import DataFramefrom pandas import DataFramefrom pandas.core.interchange.dataframe_protocol import DataFrame
 
-# pyDelta
+# pyDeltafile
 
-pyDelta is an open-source tool for comparing data files (CSV, Excel) and generating the delta between them. 
+pyDeltafile is an open-source tool for comparing data files (CSV, Excel) and generating the delta between them. 
 The project identifies added, removed, and modified rows, providing a detailed report of the differences.
 
 ## Features
@@ -11,20 +11,20 @@ Produce a fast, customizable way to compare data into files (CSV) and produce a 
 
 
 ```bash
-pip install pyDelta
+pip install pyDeltafile
 ```
 
 ## Usage
 
 ```python
-import pyDelta as td
+import pyDeltafile as td
 td.delta_csv('file_A.csv', 'file_B.csv', 'delta.csv', 'id', 0)
 ```
 
 or
 
 ```python
-import pyDelta as td
+import pyDeltafile as td
 from pandas import DataFrame
 
 def delete_callback(dataframe: DataFrame) -> DataFrame:
@@ -76,7 +76,7 @@ id,first_name,last_name,email,gender,ip_address
 17,Egbert,Normavell,enormavellg@cisco.com,Male,235.130.153.140
 ```
 
-Using pyDelta with `keys=['ip_address']`, the generated delta into a file:
+Using pyDeltafile with `keys=['ip_address']`, the generated delta into a file:
 
 **delta.csv:**
 ```csv
@@ -90,7 +90,7 @@ id,first_name,last_name,email,gender,ip_address
 15,Mill,Chadwell,mchadwelle@archive.org,Male,15.126.32.220
 ```
 
-Using pyDelta with `keys=['ip_address']`, the generated delta with second scenario into a file:
+Using pyDeltafile with `keys=['ip_address']`, the generated delta with second scenario into a file:
 
 **delta2.csv:**
 ```csv

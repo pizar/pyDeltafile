@@ -5,7 +5,7 @@ import unittest
 import pandas as pd
 from pandas import DataFrame
 
-import pyDelta.delta as pc
+import pyDeltafile.delta as pc
 
 
 OLD_FILE_CSV = 'output/test_file1.csv'
