@@ -1,6 +1,6 @@
 # pyDeltafile
 
-![alt text](image.png)
+![alt text](funny-image.jpg)
 
 pyDeltafile is an open-source tool for comparing data files (CSV, Excel) and generating the delta between them. 
 The project identifies added, removed, and modified rows, providing a detailed report of the differences.
