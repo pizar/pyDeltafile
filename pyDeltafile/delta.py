@@ -1,4 +1,5 @@
 import hashlib
+import json
 from typing import Callable
 
 import pandas as pd
@@ -8,6 +9,11 @@ HASH_ALL_COLUMNS_KEY = 'UID'
 HASH_KEY_COLUMNS_KEY = 'RID'
 
 
+def _write_generic_file(file_path: str, data: str):
+    f = open(file_path, "w")
+    f.write(data)
+    f.close()
+
 def _read_file_csv(file_path: str, key_columns: [], skip_rows=0) -> DataFrame:
     dataframe = pd.read_csv(file_path, skiprows=skip_rows)
     dataframe = _add_hash_all_columns(dataframe)
@@ -16,6 +22,12 @@ def _read_file_csv(file_path: str, key_columns: [], skip_rows=0) -> DataFrame:
 
 def _read_file_excel(file_path: str, sheet_name='MySheet', key_columns:list[str]=None, skip_rows=0) -> DataFrame:
     dataframe = pd.read_excel(file_path, sheet_name=sheet_name, skiprows=skip_rows)
+    dataframe = _add_hash_all_columns(dataframe)
+    dataframe = _add_hash_key_columns(dataframe, key_columns)
+    return dataframe
+
+def _read_file_json(file_path: str, key_columns:list[str]=None) -> DataFrame:
+    dataframe = pd.read_json(file_path)
     dataframe = _add_hash_all_columns(dataframe)
     dataframe = _add_hash_key_columns(dataframe, key_columns)
     return dataframe
@@ -139,7 +151,7 @@ def _delta_dataframe(
 
     # calculate the line to update and apply the callback if needed
     to_update = _get_line_to_update(old_dataframe, new_dataframe, key_columns)
-    if add_callback:
+    if update_callback:
         to_update = update_callback(to_update)
 
     # compose the delta and write the file
@@ -150,7 +162,10 @@ def _delta_dataframe(
     return delta
 
 def delta_csv(
-        old_data_file: str, new_data_file: str, delta_data_file: str = 'delta.csv', key_columns: [] = None,
+        old_data_file: str,
+        new_data_file: str,
+        delta_data_file: str = 'delta.csv',
+        key_columns: [] = None,
         skip_rows: int = 0,
         delete_callback: Callable[[DataFrame], DataFrame] = None,
         add_callback: Callable[[DataFrame], DataFrame] = None,
@@ -193,10 +208,13 @@ def delta_csv(
         _add_to_head(delta_data_file, head_line)
 
 
-def delta_csv(
-        old_data_file: str, new_data_file: str, delta_data_file: str = 'delta.xlsx',
+def delta_excel(
+        old_data_file: str,
+        new_data_file: str,
+        delta_data_file: str = 'delta.xlsx',
         sheet_name:str='MySheet',
-        key_columns: [] = None, skip_rows: int = 0,
+        key_columns: [] = None,
+        skip_rows: int = 0,
         delete_callback: Callable[[DataFrame], DataFrame] = None,
         add_callback: Callable[[DataFrame], DataFrame] = None,
         update_callback: Callable[[DataFrame], DataFrame] = None
@@ -236,4 +254,51 @@ def delta_csv(
     if skip_rows > 0:
         head_line = _get_head(old_data_file, skip_rows)
         _add_to_head(delta_data_file, head_line)
+
+
+
+def delta_json(
+        old_data_file: str,
+        new_data_file: str,
+        delta_data_file: str = 'delta.json',
+        key_columns: [] = None,
+        delete_callback: Callable[[DataFrame], DataFrame] = None,
+        add_callback: Callable[[DataFrame], DataFrame] = None,
+        update_callback: Callable[[DataFrame], DataFrame] = None
+) -> None:
+    """
+    Confronta due file CSV utilizzando Pandas.
+
+    Args:
+        old_data_file (str): Percorso del vecchio file  CSV.
+        new_data_file (str): Percorso del nuovo file CSV.
+        delta_data_file (str): Percorso del file di delta CSV.
+        key_columns (list[]): elenco delle colonne chiave.
+        skip_rows (int): numero di linee da saltare dalla testata.
+        delete_callback (Callable): funzione di callback per l'elenco di righe da cancellare.
+        add_callback (Callable): funzione di callback per l'elenco di righe da aggiungere.
+        update_callback (Callable): funzione di callback per l'elenco di righe da aggiornare.
+
+    Returns:
+        pandas.DataFrame: Un DataFrame contenente le differenze tra i file.
+
+        :param old_data_file:
+        :param new_data_file:
+        :param delta_data_file:
+        :param key_columns:
+        :param skip_rows:
+        :param delete_callback:
+        :param add_callback:
+        :param update_callback:
+    """
+    # read the data file
+    old_dataframe = _read_file_json(old_data_file, key_columns)
+    new_dataframe = _read_file_json(new_data_file, key_columns)
+
+    delta = _delta_dataframe(old_dataframe, new_dataframe, key_columns, 0, delete_callback, add_callback, update_callback)
+    # Converti il DataFrame di nuovo in una lista di dizionari (come l'input originale)
+    result = delta.to_dict(orient='records')
+    # Stampa il risultato per verificare che sia identico all'input
+    data = json.dumps(result, indent=4)
+    _write_generic_file(delta_data_file, data)
 
