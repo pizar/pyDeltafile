@@ -14,6 +14,11 @@ def _read_file_csv(file_path: str, key_columns: [], skip_rows=0) -> DataFrame:
     dataframe = _add_hash_key_columns(dataframe, key_columns)
     return dataframe
 
+def _read_file_excel(file_path: str, sheet_name='MySheet', key_columns:list[str]=None, skip_rows=0) -> DataFrame:
+    dataframe = pd.read_excel(file_path, sheet_name=sheet_name, skiprows=skip_rows)
+    dataframe = _add_hash_all_columns(dataframe)
+    dataframe = _add_hash_key_columns(dataframe, key_columns)
+    return dataframe
 
 def _add_to_head(file_path: str, head: list[str]):
     try:
@@ -89,6 +94,61 @@ def _save_dataframe(file_path: str, dataframe: DataFrame):
     dataframe.to_csv(file_path, index=False)
 
 
+
+def _delta_dataframe(
+        old_dataframe: DataFrame, new_dataframe: DataFrame, key_columns: [] = None,
+        skip_rows: int = 0,
+        delete_callback: Callable[[DataFrame], DataFrame] = None,
+        add_callback: Callable[[DataFrame], DataFrame] = None,
+        update_callback: Callable[[DataFrame], DataFrame] = None
+) -> DataFrame:
+    """
+    Confronta due file CSV utilizzando Pandas.
+
+    Args:
+        old_data_file (str): Percorso del vecchio file  CSV.
+        new_data_file (str): Percorso del nuovo file CSV.
+        delta_data_file (str): Percorso del file di delta CSV.
+        key_columns (list[]): elenco delle colonne chiave.
+        skip_rows (int): numero di linee da saltare dalla testata.
+        delete_callback (Callable): funzione di callback per l'elenco di righe da cancellare.
+        add_callback (Callable): funzione di callback per l'elenco di righe da aggiungere.
+        update_callback (Callable): funzione di callback per l'elenco di righe da aggiornare.
+
+    Returns:
+        pandas.DataFrame: Un DataFrame contenente le differenze tra i file.
+
+        :param old_dataframe:
+        :param new_dataframe:
+        :param key_columns:
+        :param skip_rows:
+        :param delete_callback:
+        :param add_callback:
+        :param update_callback:
+    """
+
+    # calculate the line to delete and apply the callback if needed
+    to_delete = _get_line_to_delete(old_dataframe, new_dataframe, key_columns)
+    if delete_callback:
+        to_delete = delete_callback(to_delete)
+
+    # calculate the line to add and apply the callback if needed
+    to_add = _get_line_to_add(old_dataframe, new_dataframe, key_columns)
+    if add_callback:
+        to_add = add_callback(to_add)
+
+    # calculate the line to update and apply the callback if needed
+    to_update = _get_line_to_update(old_dataframe, new_dataframe, key_columns)
+    if add_callback:
+        to_update = update_callback(to_update)
+
+    # compose the delta and write the file
+    delta = pd.concat([to_delete, to_add, to_update])
+    delta.drop(HASH_ALL_COLUMNS_KEY, axis=1, inplace=True)
+    delta.drop(HASH_KEY_COLUMNS_KEY, axis=1, inplace=True)
+
+    return delta
+
 def delta_csv(
         old_data_file: str, new_data_file: str, delta_data_file: str = 'delta.csv', key_columns: [] = None,
         skip_rows: int = 0,
@@ -123,28 +183,57 @@ def delta_csv(
     """
     # read the data file
     old_dataframe = _read_file_csv(old_data_file, key_columns, skip_rows)
-    new_data_file = _read_file_csv(new_data_file, key_columns, skip_rows)
+    new_dataframe = _read_file_csv(new_data_file, key_columns, skip_rows)
 
-    # calculate the line to delete and apply the callback if needed
-    to_delete = _get_line_to_delete(old_dataframe, new_data_file, key_columns)
-    if delete_callback:
-        to_delete = delete_callback(to_delete)
+    delta = _delta_dataframe(old_dataframe, new_dataframe, key_columns, skip_rows, delete_callback, add_callback, update_callback)
 
-    # calculate the line to add and apply the callback if needed
-    to_add = _get_line_to_add(old_dataframe, new_data_file, key_columns)
-    if add_callback:
-        to_add = add_callback(to_add)
-
-    # calculate the line to update and apply the callback if needed
-    to_update = _get_line_to_update(old_dataframe, new_data_file, key_columns)
-    if add_callback:
-        to_update = update_callback(to_update)
-
-    # compose the delta and write the file
-    delta = pd.concat([to_delete, to_add, to_update])
-    delta.drop(HASH_ALL_COLUMNS_KEY, axis=1, inplace=True)
-    delta.drop(HASH_KEY_COLUMNS_KEY, axis=1, inplace=True)
     delta.to_csv(delta_data_file, index=False)
     if skip_rows > 0:
         head_line = _get_head(old_data_file, skip_rows)
         _add_to_head(delta_data_file, head_line)
+
+
+def delta_csv(
+        old_data_file: str, new_data_file: str, delta_data_file: str = 'delta.xlsx',
+        sheet_name:str='MySheet',
+        key_columns: [] = None, skip_rows: int = 0,
+        delete_callback: Callable[[DataFrame], DataFrame] = None,
+        add_callback: Callable[[DataFrame], DataFrame] = None,
+        update_callback: Callable[[DataFrame], DataFrame] = None
+) -> None:
+    """
+    Confronta due file CSV utilizzando Pandas.
+
+    Args:
+        old_data_file (str): Percorso del vecchio file  CSV.
+        new_data_file (str): Percorso del nuovo file CSV.
+        delta_data_file (str): Percorso del file di delta CSV.
+        key_columns (list[]): elenco delle colonne chiave.
+        skip_rows (int): numero di linee da saltare dalla testata.
+        delete_callback (Callable): funzione di callback per l'elenco di righe da cancellare.
+        add_callback (Callable): funzione di callback per l'elenco di righe da aggiungere.
+        update_callback (Callable): funzione di callback per l'elenco di righe da aggiornare.
+
+    Returns:
+        pandas.DataFrame: Un DataFrame contenente le differenze tra i file.
+
+        :param old_data_file:
+        :param new_data_file:
+        :param delta_data_file:
+        :param key_columns:
+        :param skip_rows:
+        :param delete_callback:
+        :param add_callback:
+        :param update_callback:
+    """
+    # read the data file
+    old_dataframe = _read_file_excel(old_data_file, sheet_name, key_columns, skip_rows)
+    new_dataframe = _read_file_excel(new_data_file, sheet_name, key_columns, skip_rows)
+
+    delta = _delta_dataframe(old_dataframe, new_dataframe, key_columns, skip_rows, delete_callback, add_callback, update_callback)
+
+    delta.to_csv(delta_data_file, index=False)
+    if skip_rows > 0:
+        head_line = _get_head(old_data_file, skip_rows)
+        _add_to_head(delta_data_file, head_line)
+
